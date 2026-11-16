@@ -1,0 +1,7 @@
+import {Chess} from './chess.js';
+const V={p:100,n:320,b:335,r:500,q:900,k:0};
+let deadline,nodes;
+function evaluate(g){let s=0;for(const row of g.board())for(const p of row)if(p){const x=p.square.charCodeAt(0)-97,y=+p.square[1]-1,advance=p.color==='w'?y:7-y,c=3.5-Math.abs(x-3.5),center=c+3.5-Math.abs(y-3.5);let v=V[p.type];if(p.type==='p')v+=advance*7+c*3;if(p.type==='n')v+=center*12;if(p.type==='b')v+=center*6;if(p.type==='r')v+=advance*2;if(p.type==='k')v-=center*5;s+=p.color==='w'?v:-v;}return s*(g.turn()==='w'?1:-1);}
+function order(ms){return ms.sort((a,b)=>((V[b.captured]||0)*10-(V[b.piece]||0)+(b.promotion?900:0))-((V[a.captured]||0)*10-(V[a.piece]||0)+(a.promotion?900:0)));}
+function search(g,d,a,b,ply){if((++nodes&127)===0&&Date.now()>deadline)throw 0;let ms=g.moves({verbose:true});if(!ms.length)return g.isCheck()?-100000+ply:0;if(g.isDraw())return 0;if(d<=0)return evaluate(g);let best=-Infinity;for(const m of order(ms)){g.move(m);let v;try{v=-search(g,d-1,-b,-a,ply+1);}finally{g.undo();}best=Math.max(best,v);a=Math.max(a,v);if(a>=b)break;}return best;}
+self.onmessage=({data})=>{const g=new Chess(data.fen);deadline=Date.now()+1800;nodes=0;let best=null;for(let depth=1;depth<=4;depth++){let chosen=null,score=-Infinity;try{for(const m of order(g.moves({verbose:true}))){g.move(m);let v;try{v=-search(g,depth-1,-Infinity,-score,1);}finally{g.undo();}if(v>score){score=v;chosen=m;}}best=chosen;}catch{break;}}self.postMessage({id:data.id,move:best&&{from:best.from,to:best.to,promotion:best.promotion}});};
